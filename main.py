@@ -31,10 +31,6 @@ class SymptomRequest(BaseModel):
     duration: str
 
 
-class QuestionRequest(BaseModel):
-    query: str
-
-
 ALLOWED_KEYWORDS = [
     "child", "baby", "infant", "toddler", "kid", "newborn",
     "fever", "cough", "vomiting", "diarrhea", "constipation",
@@ -62,7 +58,7 @@ CRITICAL RULES:
 3. Provide general educational information only
 4. Keep responses SHORT and TO THE POINT (2-3 sentences max, use bullet points if needed)
 5. ALWAYS include this disclaimer at the end of every response:
-   " Disclaimer: This information is for educational purposes only. Please consult a pediatrician for proper medical advice."
+   "⚠️ Disclaimer: This information is for educational purposes only. Please consult a pediatrician for proper medical advice."
 
 RESPONSE GUIDELINES:
 - Be direct and concise - avoid long paragraphs
@@ -86,7 +82,7 @@ def is_emergency(text: str) -> bool:
 
 
 def sanitize_response(response_text: str) -> str:
-    disclaimer = "\n\n Disclaimer: This information is for educational purposes only and is NOT a medical diagnosis. Please consult a pediatrician for proper medical advice."
+    disclaimer = "\n\n⚠️ Disclaimer: This information is for educational purposes only and is NOT a medical diagnosis. Please consult a pediatrician for proper medical advice."
     
     if "Disclaimer" not in response_text:
         return response_text + disclaimer
@@ -124,7 +120,7 @@ def ask_symptom(request: SymptomRequest):
     
     if is_emergency(combined_query):
         return {
-            "response": "EMERGENCY ALERT: Based on your description, this may be a medical emergency. Call emergency services or visit the nearest hospital immediately.",
+            "response": "🚨 EMERGENCY ALERT: Based on your description, this may be a medical emergency. Call emergency services or visit the nearest hospital immediately.",
             "emergency": True,
             "symptom": request.symptom_name
         }
@@ -152,51 +148,6 @@ def ask_symptom(request: SymptomRequest):
             "symptom": request.symptom_name,
             "severity": request.severity,
             "duration": request.duration
-        }
-    
-    except Exception as e:
-        import traceback
-        error_trace = traceback.format_exc()
-        print(f"ERROR: {error_trace}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"An error occurred: {str(e)}"
-        )
-
-
-@app.post("/ask-child-health")
-def ask_child_health(request: QuestionRequest):
-    query = request.query.strip()
-    
-    if not query or len(query) < 5:
-        raise HTTPException(
-            status_code=400,
-            detail="Please provide a detailed question (at least 5 characters)"
-        )
-    
-    if not is_child_health_query(query):
-        return {
-            "response": "I'm specifically designed to help with child health questions. This question appears unrelated to child health",
-            "emergency": False
-        }
-    
-    if is_emergency(query):
-        return {
-            "response": "EMERGENCY ALERT: Based on your description, this may be a medical emergency. Call emergency services or visit the nearest hospital immediately.",
-            "emergency": True
-        }
-    
-    try:
-        response = model.generate_content(SYSTEM_PROMPT + "\n\nParent's Question: " + query)
-        
-        if not response.text:
-            raise ValueError("Empty response from API")
-        
-        sanitized_response = sanitize_response(response.text)
-        
-        return {
-            "response": sanitized_response,
-            "emergency": False
         }
     
     except Exception as e:
